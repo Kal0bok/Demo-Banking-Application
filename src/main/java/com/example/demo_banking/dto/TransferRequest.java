@@ -12,7 +12,7 @@ public class TransferRequest {
     @NotNull(message = "Source account ID is required")
     private Long fromAccountId;
 
-    private Long toAccountId; 
+    private Long toAccountId;
 
     @NotNull(message = "Amount is required")
     @Positive(message = "Amount must be greater than zero")

@@ -19,39 +19,50 @@ public class TransferService {
     public Transaction createTransfer(TransferRequest request) {
         Account fromAccount = accountService.getById(request.getFromAccountId());
 
-        if (fromAccount.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new IllegalArgumentException("Insufficient funds on account id: " + fromAccount.getId());
+        if (request.getToAccountId() != null && request.getToAccountId().equals(request.getFromAccountId())) {
+            throw new IllegalArgumentException("Cannot transfer to the same account");
         }
 
-        fromAccount.setBalance(fromAccount.getBalance().subtract(request.getAmount()));
+        Account toAccount = request.getToAccountId() != null
+                ? accountService.getById(request.getToAccountId())
+                : null;
 
-        Transaction outgoingTx = Transaction.builder()
-                .id(transactionIdGenerator.getAndIncrement())
-                .account(fromAccount)
-                .type("TRANSFER_OUT")
-                .amount(request.getAmount())
-                .createdAt(LocalDateTime.now())
-                .note(request.getNote())
-                .build();
+        synchronized (fromAccount) {
+            if (fromAccount.getBalance().compareTo(request.getAmount()) < 0) {
+                throw new IllegalArgumentException("Insufficient funds on account id: " + fromAccount.getId());
+            }
 
-        accountService.addTransaction(fromAccount.getId(), outgoingTx);
+            fromAccount.setBalance(fromAccount.getBalance().subtract(request.getAmount()));
 
-        if (request.getToAccountId() != null) {
-            Account toAccount = accountService.getById(request.getToAccountId());
-            toAccount.setBalance(toAccount.getBalance().add(request.getAmount()));
-
-            Transaction incomingTx = Transaction.builder()
+            Transaction outgoingTx = Transaction.builder()
                     .id(transactionIdGenerator.getAndIncrement())
-                    .account(toAccount)
-                    .type("TRANSFER_IN")
+                    .account(fromAccount)
+                    .type("TRANSFER_OUT")
                     .amount(request.getAmount())
                     .createdAt(LocalDateTime.now())
                     .note(request.getNote())
                     .build();
 
-            accountService.addTransaction(toAccount.getId(), incomingTx);
-        }
+            accountService.addTransaction(fromAccount.getId(), outgoingTx);
 
-        return outgoingTx;
+            if (toAccount != null) {
+                synchronized (toAccount) {
+                    toAccount.setBalance(toAccount.getBalance().add(request.getAmount()));
+
+                    Transaction incomingTx = Transaction.builder()
+                            .id(transactionIdGenerator.getAndIncrement())
+                            .account(toAccount)
+                            .type("TRANSFER_IN")
+                            .amount(request.getAmount())
+                            .createdAt(LocalDateTime.now())
+                            .note(request.getNote())
+                            .build();
+
+                    accountService.addTransaction(toAccount.getId(), incomingTx);
+                }
+            }
+
+            return outgoingTx;
+        }
     }
 }

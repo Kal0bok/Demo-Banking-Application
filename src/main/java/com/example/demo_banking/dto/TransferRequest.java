@@ -2,6 +2,7 @@ package com.example.demo_banking.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -9,14 +10,15 @@ import java.math.BigDecimal;
 @Data
 public class TransferRequest {
 
-    @NotNull(message = "Source account ID is required")
+    @NotNull(message = "fromAccountId is required")
     private Long fromAccountId;
 
     private Long toAccountId;
 
-    @NotNull(message = "Amount is required")
-    @Positive(message = "Amount must be greater than zero")
+    @NotNull(message = "amount is required")
+    @Positive(message = "amount must be greater than zero")
     private BigDecimal amount;
 
+    @Size(max = 255, message = "note must be at most 255 characters")
     private String note;
 }
